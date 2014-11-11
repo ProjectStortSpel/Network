@@ -41,9 +41,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <ExecutablePath>C:\Users\ThePettson\Documents\Visual Studio 2013\Projects\RaknetConsole\External\bin;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>C:\Users\ThePettson\Documents\Visual Studio 2013\Projects\RaknetConsole\External\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\ThePettson\Documents\Visual Studio 2013\Projects\RaknetConsole\External\lib;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(ProjectDir)\..\External\bin;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(ProjectDir)\..\External\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)\..\External\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
