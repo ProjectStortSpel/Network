@@ -7,6 +7,7 @@ Client::Client()
 	m_address = "127.0.0.1";
 	m_clientPort = 127;
 	m_serverPort = 123;
+	m_userName = "Unknown User";
 
 	m_client = RakNet::RakPeerInterface::GetInstance();
 }
@@ -18,26 +19,60 @@ Client::~Client()
 	RakPeerInterface::DestroyInstance(m_client);
 }
 
-bool Client::Start(void)
+bool Client::Start(bool _isServer)
 {
 	printf("Starting client!\n");
 
-	printf("\nMy IP addresses:\n");
-	for (unsigned int i = 0; i < m_client->GetNumberOfAddresses(); ++i)
+	char hest[64];
+
+	if (!_isServer)
 	{
-		printf("%i, %s\n", i + 1, m_client->GetLocalIP(i));
+		printf("Enter IP to connect to (or enter for localhost): ");
+		Gets(hest, sizeof(hest));
+		if (!hest[0] == 0)
+			m_address = hest;
+
+		printf("Enter the port to connect to (or enter for default port): ");
+		Gets(hest, sizeof(hest));
+		if (!hest[0] == 0)
+			m_serverPort = atoi(hest);
 	}
 
-	printf("My GUID is %s\n", m_client->GetGuidFromSystemAddress(UNASSIGNED_SYSTEM_ADDRESS).ToString());
+	printf("Enter Username: ");
+	Gets(hest, sizeof(hest));
+	if (!hest[0] == 0)
+		m_userName = hest;
+
+
+	//printf("\nMy IP addresses:\n");
+	//for (unsigned int i = 0; i < m_client->GetNumberOfAddresses(); ++i)
+	//{
+	//	printf("%i, %s\n", i + 1, m_client->GetLocalIP(i));
+	//}
+
+	//printf("My GUID is %s\n", m_client->GetGuidFromSystemAddress(UNASSIGNED_SYSTEM_ADDRESS).ToString());
 
 	m_client->AllowConnectionResponseIPMigration(false);
 
-	SocketDescriptor socketDesc(m_clientPort, 0);
-	socketDesc.socketFamily = AF_INET;
+	SocketDescriptor socketDesc;
+	
+	StartupResult sr;
+	for (int i = 0; i < 5; ++i)
+	{
+		socketDesc = SocketDescriptor(m_clientPort, 0);
+		socketDesc.socketFamily = AF_INET;
 
-	m_client->Startup(8, &socketDesc, 1);
+		sr = m_client->Startup(8, &socketDesc, 1);
+
+		if (sr == RAKNET_STARTED)
+			break;
+		else if (sr == SOCKET_PORT_ALREADY_IN_USE)
+			++m_clientPort;
+
+	}
+
+
 	m_client->SetOccasionalPing(true);
-
 	ConnectionAttemptResult car = m_client->Connect(m_address.c_str(), m_serverPort, m_password.c_str(), (int)strlen(m_password.c_str()));
 	//RakAssert(car == RakNet::CONNECTION_ATTEMPT_STARTED);
 
@@ -65,7 +100,16 @@ int Client::Run(void)
 	if (_kbhit())
 	{
 		Gets(message, sizeof(message));
-		m_client->Send(message, (const int)strlen(message) + 1, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
+		BitStream stream;
+		unsigned char type = ID_USER_CHAT_MESSAGE;
+		unsigned short length = strlen(message) + 1;
+		stream.Write(type);
+		stream.Write(length);
+		stream.Write(message, length);
+
+		m_client->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
+
+		//m_client->Send(message, (const int)strlen(message) + 1, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
 	}
 
 	unsigned char packetIdentifier;
@@ -84,7 +128,8 @@ void Client::HandleMessage(unsigned char p_packetIdentifier)
 {
 	switch (p_packetIdentifier)
 	{
-	case ID_DISCONNECTION_NOTIFICATION:
+	case ID_DISCONNECTION_NOTIFICATION: // Server closed
+		printf("[Notice] Unable to get response from server; disconnecting.\n");
 		break;
 	case ID_ALREADY_CONNECTED:
 		break;
@@ -111,10 +156,17 @@ void Client::HandleMessage(unsigned char p_packetIdentifier)
 		printf("Client: Connected to %s:%i.\n", m_address.c_str(), m_serverPort);
 		BitStream stream;
 		unsigned char typeID = ID_USER_USERNAME;
-		stream.Write(typeID);
-		stream.Write((unsigned short)(strlen("ThePettsoN2") + 1));
-		stream.Write("ThePettsoN2", strlen("ThePettsoN2") + 1);
-		m_client->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
+
+
+		PackMessageStream(m_stream, ID_USER_USERNAME, m_userName.c_str());
+		m_client->Send(&m_stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
+
+		break;
+	}
+	case ID_USER_CHAT_MESSAGE:
+	{
+		char* text = UnpackMessageStream(ID_USER_CHAT_MESSAGE, m_packet);
+		printf("%s\n", text);
 
 		break;
 	}
@@ -123,7 +175,7 @@ void Client::HandleMessage(unsigned char p_packetIdentifier)
 		break;
 	default:
 		// It's a client, so just show the message
-		printf("I Am Client: %s\n", m_packet->data);
+		printf("%s\n", m_packet->data);
 		break;
 	}
 }

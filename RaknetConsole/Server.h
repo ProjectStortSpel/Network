@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <map>
 #include <RakPeerInterface.h>
 #include <PacketLogger.h>
 #include <Kbhit.h>
@@ -23,8 +23,6 @@ enum UserLevels
 struct User
 {
 	unsigned int Id;
-	unsigned int Port;
-	std::string RemoteAddress;
 	std::string UserName;
 	UserLevels UserLevel;
 };
@@ -47,12 +45,13 @@ private:
 	int m_port;
 	int m_noOfConnections;
 
-	std::vector<User> m_users;
+	std::map<SystemAddress, User> m_users;
 
 	RakPeerInterface* m_server;
 	RakNetStatistics* m_statistics;
 	Packet* m_packet;
 	PacketLogger m_logger;
+	BitStream m_stream;
 };
 
 

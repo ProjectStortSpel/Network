@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Server.h"
-
+#include <Windows.h>
 
 Server::Server()
 {
@@ -59,11 +59,12 @@ bool Server::Start(void)
 	{
 		SystemAddress sa = m_server->GetInternalID(UNASSIGNED_SYSTEM_ADDRESS, i);
 		printf("%i. %s (LAN=%i)\n", i + 1, sa.ToString(true), sa.IsLANAddress());
+		SetConsoleTitle(sa.ToString(true));// (sa.ToString(true)));
 	}
 
 	printf("\nGUID: %s\n", m_server->GetGuidFromSystemAddress(UNASSIGNED_SYSTEM_ADDRESS).ToString());
 
-	printf("Server started!!\n");
+	printf("\nServer started!!\n\n\n");
 	return true;
 }
 
@@ -74,7 +75,7 @@ int Server::Run(void)
 
 	if (_kbhit())
 	{
-		Gets(message, sizeof(message));
+		
 	}
 
 	unsigned char packetIdentifier;
@@ -91,14 +92,23 @@ int Server::Run(void)
 
 void Server::HandleMessage(unsigned char p_packetIdentifier)
 {
+	char message[2048];
+	unsigned char type;
+
 	switch (p_packetIdentifier)
 	{
 	case ID_NEW_INCOMING_CONNECTION:
 	{
 		break;
 	}
-	case ID_DISCONNECTION_NOTIFICATION:
+	case ID_DISCONNECTION_NOTIFICATION: // User disconnected
+	{
+		printf("Server: User %s disconnected.\n", m_users[m_packet->systemAddress].UserName.c_str());
+
+		m_users.erase(m_packet->systemAddress);
+
 		break;
+	}
 	case ID_INCOMPATIBLE_PROTOCOL_VERSION:
 		break;
 	case ID_CONNECTED_PING:
@@ -106,9 +116,8 @@ void Server::HandleMessage(unsigned char p_packetIdentifier)
 		break;
 	case ID_CONNECTION_LOST:
 		break;
-	case ID_USER_USERNAME:
+	case ID_USER_USERNAME: // User connected
 	{
-		unsigned char type;
 		unsigned short length;
 		char* userName;
 
@@ -121,17 +130,33 @@ void Server::HandleMessage(unsigned char p_packetIdentifier)
 
 		User u;
 		u.Id				= m_users.size();
-		u.Port				= m_packet->systemAddress.GetPort();
-		u.RemoteAddress		= m_packet->systemAddress.ToString(false);
 		u.UserName			= userName;
 
-		m_users.emplace_back(u);
+		m_users[m_packet->systemAddress] = u;
 
-		printf("Server: New user '%s' connected from %s\n", userName, m_packet->systemAddress.ToString(true));
+		printf("Server: New user '%s' connected from %s.\n", userName, m_packet->systemAddress.ToString(true));
+
+		break;
+	}
+	case ID_USER_CHAT_MESSAGE:
+	{
+		unsigned short length;
+		std::string username = m_users[m_packet->systemAddress].UserName;
+
+		char* text = UnpackMessageStream(ID_USER_CHAT_MESSAGE, m_packet);
+
+		sprintf_s(message, "%s: %s", username.c_str(), text);
+
+		PackMessageStream(m_stream, ID_USER_CHAT_MESSAGE, message);
+
+		m_server->Send(&m_stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, m_packet->systemAddress, true);
+		//printf("recived message from: %s\n", username.c_str());
 		break;
 	}
 	default:
-		printf("Server got message: %s\n", m_packet->data);
-		break;
+	{
+		printf("[Server] Recived unknown message.\n");
+			break;
+	}
 	}
 }

@@ -14,7 +14,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	Server* m_server = 0;
 	Client* m_client = 0;
 
-	bool m_isServer = false;
+	bool isServer = false;
 
 	printf("RakNet server/client test.\n\n");
 	
@@ -31,11 +31,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			return 0;
 		}
-		m_isServer = true;
+		isServer = true;
 	}
 	
 	m_client = new Client();
-	if (!m_client->Start())
+	if (!m_client->Start(isServer))
 	{
 		return 0;
 	}
@@ -46,11 +46,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		RakSleep(30);
 
-		m_client->Run();
-		if(m_isServer)
+		if(m_client)
+			m_client->Run();
+		if (isServer)
 			m_server->Run();
 	}
-
 
 	if (m_client)
 	{
