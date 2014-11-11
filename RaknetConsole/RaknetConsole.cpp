@@ -41,6 +41,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 
+	system("cls");
 	while (true)
 	{
 		RakSleep(30);
@@ -49,14 +50,6 @@ int _tmain(int argc, _TCHAR* argv[])
 		if(m_isServer)
 			m_server->Run();
 	}
-
-
-
-
-
-
-
-
 
 
 	if (m_client)

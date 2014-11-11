@@ -81,77 +81,57 @@ int Server::Run(void)
 	for (m_packet = m_server->Receive(); m_packet; m_server->DeallocatePacket(m_packet), m_packet = m_server->Receive())
 	{
 		packetIdentifier = GetPacketIdentifier(m_packet);
-		DefaultMessageIDTypes type = (DefaultMessageIDTypes)packetIdentifier;
-		int hest = 0;
-
-		switch (packetIdentifier)
-		{
-		case ID_DISCONNECTION_NOTIFICATION:
-			// Connection lost normally
-			printf("ID_DISCONNECTION_NOTIFICATION from %s\n", m_packet->systemAddress.ToString(true));;
-			break;
-
-
-		case ID_NEW_INCOMING_CONNECTION:
-			// Somebody connected.  We have their IP now
-			printf("ID_NEW_INCOMING_CONNECTION from %s with GUID %s\n", m_packet->systemAddress.ToString(true), m_packet->guid.ToString());
-
-			printf("Remote internal IDs:\n");
-			for (int index = 0; index < MAXIMUM_NUMBER_OF_INTERNAL_IDS; index++)
-			{
-				RakNet::SystemAddress internalId = m_server->GetInternalID(m_packet->systemAddress, index);
-				if (internalId != RakNet::UNASSIGNED_SYSTEM_ADDRESS)
-				{
-					printf("%i. %s\n", index + 1, internalId.ToString(true));
-				}
-			}
-
-			break;
-
-		case ID_INCOMPATIBLE_PROTOCOL_VERSION:
-			printf("ID_INCOMPATIBLE_PROTOCOL_VERSION\n");
-			break;
-
-		case ID_CONNECTED_PING:
-		case ID_UNCONNECTED_PING:
-			printf("Ping from %s\n", m_packet->systemAddress.ToString(true));
-			break;
-
-		case ID_CONNECTION_LOST:
-			// Couldn't deliver a reliable packet - i.e. the other system was abnormally
-			// terminated
-			printf("ID_CONNECTION_LOST from %s\n", m_packet->systemAddress.ToString(true));;
-			break;
-
-		default:
-			// The server knows the static data of all clients, so we can prefix the message
-			// With the name data
-			printf("I Am Server: %s\n", m_packet->data);
-
-			// Relay the message.  We prefix the name for other clients.  This demonstrates
-			// That messages can be changed on the server before being broadcast
-			// Sending is the same as before
-			sprintf_s(message, "%s", m_packet->data);
-			m_server->Send(message, (const int)strlen(message) + 1, HIGH_PRIORITY, RELIABLE_ORDERED, 0, m_packet->systemAddress, true);
-
-			break;
-		}
+		HandleMessage(packetIdentifier);
 	}
+
 
 
 	return 1;
 }
 
-unsigned char Server::GetPacketIdentifier(RakNet::Packet *p)
+void Server::HandleMessage(unsigned char p_packetIdentifier)
 {
-	if (p == 0)
-		return 255;
-
-	if ((unsigned char)p->data[0] == ID_TIMESTAMP)
+	switch (p_packetIdentifier)
 	{
-		RakAssert(p->length > sizeof(RakNet::MessageID) + sizeof(RakNet::Time));
-		return (unsigned char)p->data[sizeof(RakNet::MessageID) + sizeof(RakNet::Time)];
+	case ID_NEW_INCOMING_CONNECTION:
+	{
+		break;
 	}
-	else
-		return (unsigned char)p->data[0];
+	case ID_DISCONNECTION_NOTIFICATION:
+		break;
+	case ID_INCOMPATIBLE_PROTOCOL_VERSION:
+		break;
+	case ID_CONNECTED_PING:
+	case ID_UNCONNECTED_PING:
+		break;
+	case ID_CONNECTION_LOST:
+		break;
+	case ID_USER_USERNAME:
+	{
+		unsigned char type;
+		unsigned short length;
+		char* userName;
+
+		BitStream stream(m_packet->data, m_packet->length, false);
+		stream.Read(type);
+		stream.Read(length);
+
+		userName = new char[length];
+		stream.Read(userName,length);
+
+		User u;
+		u.Id				= m_users.size();
+		u.Port				= m_packet->systemAddress.GetPort();
+		u.RemoteAddress		= m_packet->systemAddress.ToString(false);
+		u.UserName			= userName;
+
+		m_users.emplace_back(u);
+
+		printf("Server: New user '%s' connected from %s\n", userName, m_packet->systemAddress.ToString(true));
+		break;
+	}
+	default:
+		printf("Server got message: %s\n", m_packet->data);
+		break;
+	}
 }

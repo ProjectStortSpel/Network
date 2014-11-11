@@ -5,7 +5,7 @@ Client::Client()
 {
 	m_password = "Rumpelstiltskin";
 	m_address = "127.0.0.1";
-	m_clientPort = 125;
+	m_clientPort = 127;
 	m_serverPort = 123;
 
 	m_client = RakNet::RakPeerInterface::GetInstance();
@@ -65,7 +65,6 @@ int Client::Run(void)
 	if (_kbhit())
 	{
 		Gets(message, sizeof(message));
-
 		m_client->Send(message, (const int)strlen(message) + 1, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
 	}
 
@@ -73,81 +72,58 @@ int Client::Run(void)
 	for (m_packet = m_client->Receive(); m_packet; m_client->DeallocatePacket(m_packet), m_packet = m_client->Receive())
 	{
 		packetIdentifier = GetPacketIdentifier(m_packet);
-
-		switch (packetIdentifier)
-		{
-		case ID_DISCONNECTION_NOTIFICATION:
-			// Connection lost normally
-			printf("ID_DISCONNECTION_NOTIFICATION\n");
-			break;
-		case ID_ALREADY_CONNECTED:
-			// Connection lost normally
-			printf("ID_ALREADY_CONNECTED with guid %" PRINTF_64_BIT_MODIFIER "u\n", m_packet->guid);
-			break;
-		case ID_INCOMPATIBLE_PROTOCOL_VERSION:
-			printf("ID_INCOMPATIBLE_PROTOCOL_VERSION\n");
-			break;
-		case ID_REMOTE_DISCONNECTION_NOTIFICATION: // Server telling the clients of another client disconnecting gracefully.  You can manually broadcast this in a peer to peer enviroment if you want.
-			printf("ID_REMOTE_DISCONNECTION_NOTIFICATION\n");
-			break;
-		case ID_REMOTE_CONNECTION_LOST: // Server telling the clients of another client disconnecting forcefully.  You can manually broadcast this in a peer to peer enviroment if you want.
-			printf("ID_REMOTE_CONNECTION_LOST\n");
-			break;
-		case ID_REMOTE_NEW_INCOMING_CONNECTION: // Server telling the clients of another client connecting.  You can manually broadcast this in a peer to peer enviroment if you want.
-			printf("ID_REMOTE_NEW_INCOMING_CONNECTION\n");
-			break;
-		case ID_CONNECTION_BANNED: // Banned from this server
-			printf("We are banned from this server.\n");
-			break;
-		case ID_CONNECTION_ATTEMPT_FAILED:
-			printf("Connection attempt failed\n");
-			break;
-		case ID_NO_FREE_INCOMING_CONNECTIONS:
-			// Sorry, the server is full.  I don't do anything here but
-			// A real app should tell the user
-			printf("ID_NO_FREE_INCOMING_CONNECTIONS\n");
-			break;
-
-		case ID_INVALID_PASSWORD:
-			printf("ID_INVALID_PASSWORD\n");
-			break;
-
-		case ID_CONNECTION_LOST:
-			// Couldn't deliver a reliable packet - i.e. the other system was abnormally
-			// terminated
-			printf("ID_CONNECTION_LOST\n");
-			break;
-
-		case ID_CONNECTION_REQUEST_ACCEPTED:
-			// This tells the client they have connected
-			printf("ID_CONNECTION_REQUEST_ACCEPTED to %s with GUID %s\n", m_packet->systemAddress.ToString(true), m_packet->guid.ToString());
-			printf("My external address is %s\n", m_client->GetExternalID(m_packet->systemAddress).ToString(true));
-			break;
-		case ID_CONNECTED_PING:
-		case ID_UNCONNECTED_PING:
-			printf("Ping from %s\n", m_packet->systemAddress.ToString(true));
-			break;
-		default:
-			// It's a client, so just show the message
-			printf("I Am Client: %s\n", m_packet->data);
-			break;
-		}
+		HandleMessage(packetIdentifier);
 	}
 
 
 	return 1;
 }
 
-unsigned char Client::GetPacketIdentifier(RakNet::Packet *p)
-{
-	if (p == 0)
-		return 255;
 
-	if ((unsigned char)p->data[0] == ID_TIMESTAMP)
+void Client::HandleMessage(unsigned char p_packetIdentifier)
+{
+	switch (p_packetIdentifier)
 	{
-		RakAssert(p->length > sizeof(RakNet::MessageID) + sizeof(RakNet::Time));
-		return (unsigned char)p->data[sizeof(RakNet::MessageID) + sizeof(RakNet::Time)];
+	case ID_DISCONNECTION_NOTIFICATION:
+		break;
+	case ID_ALREADY_CONNECTED:
+		break;
+	case ID_INCOMPATIBLE_PROTOCOL_VERSION:
+		break;
+	case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+		break;
+	case ID_REMOTE_CONNECTION_LOST:
+		break;
+	case ID_REMOTE_NEW_INCOMING_CONNECTION:
+		break;
+	case ID_CONNECTION_BANNED: // Banned from this server
+		break;
+	case ID_CONNECTION_ATTEMPT_FAILED:
+		break;
+	case ID_NO_FREE_INCOMING_CONNECTIONS:
+		break;
+	case ID_INVALID_PASSWORD:
+		break;
+	case ID_CONNECTION_LOST:
+		break;
+	case ID_CONNECTION_REQUEST_ACCEPTED:
+	{
+		printf("Client: Connected to %s:%i.\n", m_address.c_str(), m_serverPort);
+		BitStream stream;
+		unsigned char typeID = ID_USER_USERNAME;
+		stream.Write(typeID);
+		stream.Write((unsigned short)(strlen("ThePettsoN2") + 1));
+		stream.Write("ThePettsoN2", strlen("ThePettsoN2") + 1);
+		m_client->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, UNASSIGNED_SYSTEM_ADDRESS, true);
+
+		break;
 	}
-	else
-		return (unsigned char)p->data[0];
+	case ID_CONNECTED_PING:
+	case ID_UNCONNECTED_PING:
+		break;
+	default:
+		// It's a client, so just show the message
+		printf("I Am Client: %s\n", m_packet->data);
+		break;
+	}
 }

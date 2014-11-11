@@ -4,9 +4,10 @@
 #include <RakPeerInterface.h>
 #include <PacketLogger.h>
 #include <MessageIdentifiers.h>
-
 #include <Kbhit.h>
 #include <Gets.h>
+
+#include "Global.h"
 
 using namespace RakNet;
 
@@ -21,7 +22,7 @@ public:
 
 private:
 
-	unsigned char GetPacketIdentifier(Packet *p);
+	void HandleMessage(unsigned char);
 
 	std::string m_password;
 	std::string m_address;
